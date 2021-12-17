@@ -13,3 +13,25 @@ Other schemes can be implemented using the already constructed
 using the functions implemented in the cache class.
 
 The cache is made thread safe using reader-writer locks.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Disclaimer: This code should not be used without prior permission.
