@@ -5,33 +5,35 @@ typedef shared_mutex Lock;
 typedef unique_lock< Lock >  WriteLock;
 typedef shared_lock< Lock >  ReadLock;
 
-template<class T>
+template<class K, class T>
 class Node{
 public:
-    int key;
+    K key;
     T val;
     Node* nxt;
     Node* prev;
-    Node(int k, T v):key(k), val(v),nxt(0),prev(0){}
+    Node(K k, T v):key(k), val(v),nxt(0),prev(0){}
 };
 
-template<class T>
+template<class K,class T>
 class Cache{
 private:
-    virtual void Used(Node<T>*)=0;
+    virtual void Used(Node<K,T>*)=0;
     Lock myLock;
+    virtual void Evict()=0;
+    virtual void InsertNode(Node<K,T>*)=0;
 protected:
     int sz;
-    unordered_map<int,Node<T>*> m;
-    Node<T>* head;
-    Node<T>* tail;
-    Node<T>* FindNode(int key){
+    unordered_map<K,Node<K,T>*> m;
+    Node<K,T>* head;
+    Node<K,T>* tail;
+    Node<K,T>* FindNode(K key){
         if(m.find(key)==m.end()){
             return 0;
         }
         return m[key];
     }
-    void IsolateNode(Node<T>* n){
+    void IsolateNode(Node<K,T>* n){
         if(head==n && tail==n){
             head=0,tail=0;
             return;
@@ -47,7 +49,7 @@ protected:
             tail=n->prev;
         }
     }
-    void InsertBegin(Node<T>* n){
+    void InsertBegin(Node<K,T>* n){
         if(!head&&!tail){
             head=n;
             tail=n;
@@ -57,7 +59,7 @@ protected:
       n->nxt=head;
       head=n;
     }
-    void InsertLast(Node<T>* n){
+    void InsertLast(Node<K,T>* n){
         if(!head&&!tail){
             head=n;
             tail=n;
@@ -69,117 +71,105 @@ protected:
     }
     void DeleteLast(){
         if(!tail) return;
-        Node<T>* temp=tail;
+        Node<K,T>* temp=tail;
         IsolateNode(temp);
         DeleteNode(temp);
     }
     void DeleteBegin(){
         if(!head)return;
-        Node<T>* temp=head;
+        Node<K,T>* temp=head;
         IsolateNode(temp);
         DeleteNode(temp);
     }
-    void DeleteNode(Node<T>* n){
+    void DeleteNode(Node<K,T>* n){
         int k=n->key;
         m.erase(k);
         delete n;
     }
+
 public:
     Cache(int sz): sz(sz),head(0), tail(0){}
-    virtual void InsertPair(int, T)=0;
-    void Insert(int key, T val){
+    void Insert(K key, T val){
         WriteLock w_lock(myLock);
-        InsertPair(key, val);
+        Node<K,T>* curr=this->FindNode(key);
+        if(curr!=0){
+            return;
+        };
+        Evict();
+        curr=new Node<K,T>(key,val);
+        InsertNode(curr);
     }
-    T Query(int key){
+    T* Query(K key){
         ReadLock r_lock(myLock);
-        Node<T>* curr=FindNode(key);
-        if(!curr)return 0;
+        Node<K,T>* curr=FindNode(key);
+        if(!curr)return nullptr;
         Used(curr);
-        return curr->val;
+        return &(curr->val);
     }
-    void PrintIt(){
-        Node<T>* temp=head;
-        while(temp){
-            cout<<temp->val<<" ";
-            temp=temp->nxt;
-        }
-        cout<<endl;
-    }
-
-    bool IsPresent(int key){
+    bool IsPresent(K key){
         ReadLock r_lock(myLock);
-        Node<T>* curr=FindNode(key);
+        Node<K,T>* curr=FindNode(key);
         if(!curr)return false;
         return true;
     }
     ~Cache(){
-        Node<T>* temp=head;
+        Node<K,T>* temp=head;
         while(temp){
-            Node<T>* temp1=temp->nxt;
+            Node<K,T>* temp1=temp->nxt;
             delete temp;
             temp=temp1;
         }
     }
 };
-template<class T>
-class LRU: public Cache<T>{
+template<class K, class T>
+class LRU: public Cache<K,T>{
 private:
-    void Used(Node<T>* u){
+    void Used(Node<K,T>* u){
         this->IsolateNode(u);
         this->InsertBegin(u);
     }
-public:
-    LRU(int sz):Cache<T>(sz){}
-    void InsertPair(int key, T val){
-        Node<T>* curr=this->FindNode(key);
-        if(curr!=0){
-            return;
-        };
-        curr=new Node<T>(key,val);
+    void Evict(){
         if(this->m.size()==this->sz)
             this->DeleteLast();
-        this->m[key]=curr;
+    }
+    void InsertNode(Node<K,T>* curr){
+        this->m[curr->key]=curr;
         this->InsertBegin(curr);
     }
+public:
+    LRU(int sz):Cache<K,T>(sz){}
 };
 
-template<class T>
-class FIFO: public Cache<T>{
+template<class K, class T>
+class FIFO: public Cache<K,T>{
 private:
-    void Used(Node<T>* u){
+    void Used(Node<K,T>* u){
     }
-public:
-    FIFO(int sz):Cache<T>(sz){}
-    void InsertPair(int key, T val){
-        Node<T>* curr=this->FindNode(key);
-        if(curr!=0){
-            return;
-        };
-        curr=new Node<T>(key,val);
+    void Evict(){
         if(this->m.size()==this->sz)
             this->DeleteBegin();
-        this->m[key]=curr;
-        this->InsertLast(curr);
     }
-};
-
-template<class T>
-class LIFO: public Cache<T>{
-private:
-    void Used(Node<T>* u){
+    void InsertNode(Node<K,T>* curr){
+        this->m[curr->key]=curr;
+        this->InsertLast(curr);
     }
 public:
-    LIFO(int sz):Cache<T>(sz){}
-    void InsertPair(int key, T val){
-        Node<T>* curr=this->FindNode(key);
-        if(curr!=0){
-            return;
-        };
-        curr=new Node<T>(key,val);
+    FIFO(int sz):Cache<K,T>(sz){}
+};
+
+template<class K,class T>
+class LIFO: public Cache<K,T>{
+private:
+    void Used(Node<K,T>* u){
+    }
+    void Evict(){
         if(this->m.size()==this->sz)
             this->DeleteLast();
-        this->m[key]=curr;
+    }
+    void InsertNode(Node<K,T>* curr){
+        this->m[curr->key]=curr;
         this->InsertLast(curr);
     }
+public:
+    LIFO(int sz):Cache<K,T>(sz){}
 };
