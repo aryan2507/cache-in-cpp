@@ -11,6 +11,7 @@ You can choose from three different schemes-
 1. LRU
 2. FIFO
 3. LIFO
+
 Other schemes can be implemented using the already constructed
 using the functions implemented in the Cache class.
 
