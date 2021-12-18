@@ -18,6 +18,7 @@ To implement a new scheme, you need to fill two functions:
 1. Used():  what to do if an entry is accessed.
 2. InsertNode(): how to insert a new node in it.
 3. Evict(): how to evict an entry in case the cache is filled.
+
 Some other functions that can be used to implement the above functions are:
 1. IsolateNode: Remove a node from the cache.
 2. InsertBegin and InsertLast
