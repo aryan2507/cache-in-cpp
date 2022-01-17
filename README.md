@@ -32,20 +32,3 @@ The cache provides you with the following functions:
 1. Query(): checks the cache for an element with the given key. If present, it returns a pointer to the value present in the cache, otherwise a nullptr is returned.
 2. Insert(): inserts the given key-value pair in the cache. It may evict some elements from the cache if no space is present.
 3. IsPresent(): checks the cache for an element with the given key, returns true if present and false otherwise.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Disclaimer: The code present in this repo should not be used without prior permission.
